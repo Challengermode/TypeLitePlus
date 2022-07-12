@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net480</TargetFrameworks>
     <PackageId>Challengermode.TypeLitePlus.Core</PackageId>
-    <Version>2.1.0-cm</Version>
+    <Version>2.1.0-cm.2</Version>
     <Authors>Lukas Kabrt, Robert McLaws, and contributors.</Authors>
     <Description>Fork of TypeLitePlus.Core with Challengermode tweaks.</Description>
     <Copyright>Copyright &amp;copy; 2018 Lukas Kabrt, Robert McLaws, and CloudNimble, Inc.</Copyright>
