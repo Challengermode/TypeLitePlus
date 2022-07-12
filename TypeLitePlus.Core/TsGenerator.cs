@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using TypeLitePlus.Extensions;
 using TypeLitePlus.TsModels;
@@ -40,9 +41,10 @@ namespace TypeLitePlus
         public string IndentationString { get; set; }
 
         /// <summary>
-        /// Gets or sets bool value indicating whether enums should be generated as 'const enum'. Default value is true.
+        /// Gets or sets bool value indicating whether enums should be generated as 'const enum'.
+        /// Default value is null, meaning that <see cref="TsEnumAttribute.EmitConstEnum"/> will decide.
         /// </summary>
-        public bool GenerateConstEnums { get; set; }
+        public bool? GenerateConstEnums { get; set; }
 
         /// <summary>
         /// Gets or sets the <see cref="TsGenerationModes">Mode</see> for generating the file. Defaults to <see cref="TsGenerationModes.Definitions"/>.
@@ -89,14 +91,15 @@ namespace TypeLitePlus
             _moduleNameFormatter = DefaultModuleNameFormatter;
 
             this.IndentationString = "\t";
-            this.GenerateConstEnums = true;
+            this.GenerateConstEnums = null;
             this.Mode = TsGenerationModes.Definitions;
             this.EnumMode = TsEnumModes.Number;
         }
 
         public bool DefaultTypeVisibilityFormatter(TsClass tsClass, string typeName)
         {
-            return Mode == TsGenerationModes.Definitions ? false : true;
+            //return Mode == TsGenerationModes.Definitions ? false : true;
+            return true;
         }
 
         public string DefaultModuleNameFormatter(TsModule module)
@@ -233,7 +236,7 @@ namespace TypeLitePlus
                 if ((generatorOutput & TsGeneratorOutput.Constants) == TsGeneratorOutput.Constants)
                 {
                     // We can't generate constants together with properties or fields, because we can't set values in a .d.ts file.
-                    throw new InvalidOperationException("Cannot generate constants together with properties or fields");
+                    //throw new InvalidOperationException("Cannot generate constants together with properties or fields");
                 }
 
                 foreach (var reference in _references.Concat(model.References))
@@ -245,7 +248,9 @@ namespace TypeLitePlus
 
             // We can't just sort by the module name, because a formatter can jump in and change it so
             // format by the desired target name
-            foreach (var module in model.Modules.OrderBy(c => c.SortOrder).ThenBy(m => GetModuleName(m)))
+            foreach (var module in model.Modules
+                .OrderBy(c => c.SortOrder)
+                .ThenBy(m => GetModuleName(m), StringComparer.InvariantCulture))
             {
                 this.AppendModule(module, sb, generatorOutput);
             }
@@ -266,14 +271,20 @@ namespace TypeLitePlus
 
         protected virtual void AppendModule(TsModule module, ScriptBuilder sb, TsGeneratorOutput generatorOutput)
         {
-            var classes = module.Classes.Where(c => !_typeConvertors.IsConvertorRegistered(c.Type) && !c.IsIgnored).OrderBy(c => GetTypeName(c)).ToList();
+            var classes = module.Classes
+                .Where(c => !_typeConvertors.IsConvertorRegistered(c.Type) && !c.IsIgnored)
+                .OrderBy(c => GetTypeName(c), StringComparer.InvariantCulture)
+                .ToList();
             var baseClasses = classes
                 .Where(c => c.BaseType != null)
                 .Select(c => c.BaseType.Type.FullName)
                 .Distinct()
-                .OrderBy(c => c)
+                .OrderBy(c => c, StringComparer.InvariantCulture)
                 .ToList();
-            var enums = module.Enums.Where(e => !_typeConvertors.IsConvertorRegistered(e.Type) && !e.IsIgnored).OrderBy(e => GetTypeName(e)).ToList();
+            var enums = module.Enums
+                .Where(e => !_typeConvertors.IsConvertorRegistered(e.Type) && !e.IsIgnored)
+                .OrderBy(e => GetTypeName(e), StringComparer.InvariantCulture)
+                .ToList();
             if ((generatorOutput == TsGeneratorOutput.Enums && enums.Count == 0) ||
                 (generatorOutput == TsGeneratorOutput.Properties && classes.Count == 0) ||
                 (enums.Count == 0 && classes.Count == 0))
@@ -296,11 +307,12 @@ namespace TypeLitePlus
 
             if (generateModuleHeader)
             {
-                if (generatorOutput != TsGeneratorOutput.Enums &&
-                    (generatorOutput & TsGeneratorOutput.Constants) != TsGeneratorOutput.Constants)
-                {
-                    sb.Append(Mode == TsGenerationModes.Definitions ? "declare " : "export ");
-                }
+                //if (generatorOutput != TsGeneratorOutput.Enums &&
+                //    (generatorOutput & TsGeneratorOutput.Constants) != TsGeneratorOutput.Constants)
+                //{
+                //    sb.Append(Mode == TsGenerationModes.Definitions ? "declare " : "export ");
+                //}
+                sb.Append("export ");
 
                 sb.AppendLine($"{(Mode == TsGenerationModes.Definitions ? "namespace" : "module")} {moduleName} {{");
             }
@@ -393,7 +405,9 @@ namespace TypeLitePlus
             }
             using (sb.IncreaseIndentation())
             {
-                foreach (var property in members.Where(p => !p.IsIgnored).OrderBy(p => this.GetPropertyName(p)))
+                foreach (var property in members
+                    .Where(p => !p.IsIgnored)
+                    .OrderBy(p => this.GetPropertyName(p), StringComparer.InvariantCulture))
                 {
                     _docAppender.AppendPropertyDoc(sb, property, this.GetPropertyName(property), this.GetPropertyType(property));
                     sb.AppendLineIndented(string.Format("{0}: {1};", this.GetPropertyName(property), this.GetPropertyType(property)));
@@ -412,7 +426,7 @@ namespace TypeLitePlus
 
             _docAppender.AppendEnumDoc(sb, enumModel, typeName);
 
-            string constSpecifier = this.GenerateConstEnums ? "const " : string.Empty;
+            string constSpecifier = (this.GenerateConstEnums ?? enumModel.EmitConstEnum) ? "const " : string.Empty;
             sb.AppendLineIndented(string.Format("{0}{2}enum {1} {{", visibility, typeName, constSpecifier));
 
             using (sb.IncreaseIndentation())
@@ -578,7 +592,8 @@ namespace TypeLitePlus
         public string GetPropertyConstantValue(TsProperty property)
         {
             var quote = property.PropertyType.Type == typeof(string) ? "\"" : "";
-            return quote + property.ConstantValue.ToString() + quote;
+            string stringValue = Convert.ToString(property.ConstantValue, CultureInfo.InvariantCulture);
+            return quote + stringValue + quote;
         }
 
         /// <summary>

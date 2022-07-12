@@ -81,6 +81,9 @@ namespace TypeLitePlus
             {
                 return;
             }
+
+            TypeScript.Log2(typeof(TypeResolver), nameof(VisitProperty),
+                $"{property.Name}: {property.PropertyType.Type.FullName}");
             property.PropertyType = this.ResolveType(property.PropertyType);
             if (property.GenericArguments != null)
             {

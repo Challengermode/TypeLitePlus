@@ -20,6 +20,8 @@ namespace TypeLitePlus.TsModels
         /// </summary>
         public ICollection<TsEnumValue> Values { get; private set; }
 
+        public bool EmitConstEnum { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the TsEnum class with the specific CLR enum.
         /// </summary>
@@ -46,6 +48,8 @@ namespace TypeLitePlus.TsModels
                 {
                     this.Module.Name = attribute.Module;
                 }
+
+                EmitConstEnum = attribute.EmitConstEnum;
             }
         }
 

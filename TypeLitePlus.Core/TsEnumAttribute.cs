@@ -17,5 +17,10 @@ namespace TypeLitePlus
         /// Gets or sets name of the module for the enum. If it isn't set, the namespace is used.
         /// </summary>
         public string Module { get; set; }
+
+        /// <summary>
+        /// Gets or sets a bool whether the enum should be exported as const or not. Defaults to true.
+        /// </summary>
+        public bool EmitConstEnum { get; set; } = true;
     }
 }
