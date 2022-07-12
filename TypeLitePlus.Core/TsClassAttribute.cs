@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TypeLitePlus
+namespace TypeLite
 {
     /// <summary>
     /// Configures a class to be included in the script model.

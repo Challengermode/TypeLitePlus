@@ -1,4 +1,5 @@
-﻿using Xunit;
+﻿using TypeLite;
+using Xunit;
 
 namespace TypeLitePlus.Tests.NetCore.RegressionTests
 {

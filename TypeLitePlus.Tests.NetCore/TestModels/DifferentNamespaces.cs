@@ -1,4 +1,6 @@
-﻿namespace TypeLitePlus.Tests.NetCore.TestModels.Namespace2
+﻿using TypeLite;
+
+namespace TypeLitePlus.Tests.NetCore.TestModels.Namespace2
 {
     [TsClass]
     public class DifferentNamespaces_Class2

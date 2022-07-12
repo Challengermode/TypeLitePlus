@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using TypeLite;
 using Xunit;
 
 namespace TypeLitePlus.Tests.NetCore.RegressionTests

@@ -1,4 +1,6 @@
-﻿namespace TypeLitePlus.Tests.NetCore.TestModels
+﻿using TypeLite;
+
+namespace TypeLitePlus.Tests.NetCore.TestModels
 {
     [TsClass(Name = "MyClass", Module = "MyModule")]
     public class CustomClassName

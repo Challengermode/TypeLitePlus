@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TypeLitePlus
+namespace TypeLite
 {
     /// <summary>
     /// Configures properties of the property in the script model.

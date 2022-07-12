@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TypeLitePlus
+namespace TypeLite
 {
     /// <summary>
     /// Configures property to be ignored by the script generator.

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using TypeLite;
 using TypeLitePlus.Extensions;
 
 namespace TypeLitePlus.TsModels

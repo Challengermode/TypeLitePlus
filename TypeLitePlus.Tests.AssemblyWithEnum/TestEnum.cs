@@ -1,4 +1,6 @@
-﻿namespace TypeLitePlus.Tests.AssemblyWithEnum
+﻿using TypeLite;
+
+namespace TypeLitePlus.Tests.AssemblyWithEnum
 {
     [TsEnum]
     public enum TestEnum {
