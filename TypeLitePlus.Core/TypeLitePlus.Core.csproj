@@ -2,14 +2,15 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net480</TargetFrameworks>
-    <Version>2.0.0</Version>
+    <PackageId>Challengermode.TypeLitePlus.Core</PackageId>
+    <Version>2.1.0-cm</Version>
     <Authors>Lukas Kabrt, Robert McLaws, and contributors.</Authors>
-    <Description>Generates TypeScript classes or interfaces from .Net Standard 2.0 classes. This package contains only binaries without T4 templates.</Description>
+    <Description>Fork of TypeLitePlus.Core with Challengermode tweaks.</Description>
     <Copyright>Copyright &amp;copy; 2018 Lukas Kabrt, Robert McLaws, and CloudNimble, Inc.</Copyright>
     <PackageTags>TypeScript, TypeLite, d.ts</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageProjectUrl>http://type.litesolutions.net</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/CloudNimble/TypeLitePlus</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Challengermode/TypeLitePlus</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
