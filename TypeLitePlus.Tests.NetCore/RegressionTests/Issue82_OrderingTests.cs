@@ -32,7 +32,7 @@ namespace TypeLitePlus.Tests.NetCore.RegressionTests
 
             var generator = new TsGenerator();
             // Reverse the order of the modules
-            generator.SetModuleNameFormatter(m => m.Name == "TypeLitePlus.Tests.NetCore.TestModels.Namespace1" ? "modz" : "moda");
+            generator.SetModuleNameFormatter((m, _) => m.Name == "TypeLitePlus.Tests.NetCore.TestModels.Namespace1" ? "modz" : "moda");
             var model = builder.Build();
 
             var result = generator.Generate(model);

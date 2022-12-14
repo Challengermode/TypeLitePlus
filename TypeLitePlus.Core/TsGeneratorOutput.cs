@@ -11,6 +11,7 @@ namespace TypeLitePlus
         Properties = 1,
         Enums = 2,
         Fields = 4,
-        Constants = 8
+        Constants = 8,
+        CSharp = 1024,
     }
 }

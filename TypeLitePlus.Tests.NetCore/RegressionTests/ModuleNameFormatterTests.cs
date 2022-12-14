@@ -14,7 +14,7 @@ namespace TypeLitePlus.Tests.NetCore.RegressionTests
             builder.Add<Drink>();
 
             var generator = new TsGenerator();
-            generator.SetModuleNameFormatter(_ => "custom");//everything should go into the 'custom' module
+            generator.SetModuleNameFormatter((_, _) => "custom");//everything should go into the 'custom' module
             var model = builder.Build();
             var result = generator.Generate(model);
 
@@ -36,7 +36,7 @@ declare namespace custom {
             builder.Add<Drink>();
 
             var generator = new TsGenerator();
-            generator.SetModuleNameFormatter(_ => "custom");//everything should go into the 'custom' module
+            generator.SetModuleNameFormatter((_, _) => "custom");//everything should go into the 'custom' module
             var model = builder.Build();
             var result = generator.Generate(model);
 

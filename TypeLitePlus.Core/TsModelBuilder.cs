@@ -28,6 +28,8 @@ namespace TypeLitePlus
         /// </summary>
         internal Dictionary<string, int> ModuleSortOrders { get; private set; }
 
+        public Func<TsModule, bool> ModuleFilterPredicate { get; set; }
+
         /// <summary>
         /// Initializes a new instance of the TsModelBuilder class.
         /// </summary>
@@ -186,6 +188,16 @@ namespace TypeLitePlus
                 if (module != null)
                 {
                     module.SortOrder = entry.Value;
+                }
+            }
+            if (ModuleFilterPredicate != null)
+            {
+                foreach (TsModule module in model.Modules.ToArray())
+                {
+                    if (!ModuleFilterPredicate(module))
+                    {
+                        model.Modules.Remove(module);
+                    }
                 }
             }
             return model;

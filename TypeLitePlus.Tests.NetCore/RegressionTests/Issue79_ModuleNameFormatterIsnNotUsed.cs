@@ -11,7 +11,7 @@ namespace TypeLitePlus.Tests.NetCore.RegressionTests
         {
 
             var ts = TypeScript.Definitions();
-            ts.WithModuleNameFormatter(m => "XXX");
+            ts.WithModuleNameFormatter((m, _) => "XXX");
             ts.ModelBuilder.Add<Product>();
 
             var model = ts.ModelBuilder.Build();

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection.Emit;
 using TypeLitePlus.Extensions;
 using TypeLitePlus.TsModels;
 
@@ -20,9 +21,8 @@ namespace TypeLitePlus
         protected TsTypeVisibilityFormatter _typeVisibilityFormatter;
         protected TsModuleNameFormatter _moduleNameFormatter;
         protected IDocAppender _docAppender;
-        protected HashSet<TsClass> _generatedClasses;
-        protected HashSet<TsEnum> _generatedEnums;
         protected List<string> _references;
+        private bool _isCsharp = false;
 
         /// <summary>
         /// Gets collection of formatters for individual TsTypes
@@ -62,8 +62,6 @@ namespace TypeLitePlus
         public TsGenerator()
         {
             _references = new List<string>();
-            _generatedClasses = new HashSet<TsClass>();
-            _generatedEnums = new HashSet<TsEnum>();
 
             _typeFormatters = new TsTypeFormatterCollection();
             _typeFormatters.RegisterTypeFormatter<TsClass>((type, formatter) =>
@@ -102,7 +100,7 @@ namespace TypeLitePlus
             return true;
         }
 
-        public string DefaultModuleNameFormatter(TsModule module)
+        public string DefaultModuleNameFormatter(TsModule module, TsType _)
         {
             return module.Name;
         }
@@ -227,10 +225,12 @@ namespace TypeLitePlus
         /// <returns>TypeScript definitions for classes and/or enums in the model..</returns>
         public string Generate(TsModel model, TsGeneratorOutput generatorOutput)
         {
+            _isCsharp = (generatorOutput & TsGeneratorOutput.CSharp) == TsGeneratorOutput.CSharp;
             var sb = new ScriptBuilder(this.IndentationString);
 
-            if ((generatorOutput & TsGeneratorOutput.Properties) == TsGeneratorOutput.Properties
-                || (generatorOutput & TsGeneratorOutput.Fields) == TsGeneratorOutput.Fields)
+            if (!_isCsharp
+                && (generatorOutput & TsGeneratorOutput.Properties) == TsGeneratorOutput.Properties
+                    || (generatorOutput & TsGeneratorOutput.Fields) == TsGeneratorOutput.Fields)
             {
 
                 if ((generatorOutput & TsGeneratorOutput.Constants) == TsGeneratorOutput.Constants)
@@ -307,14 +307,22 @@ namespace TypeLitePlus
 
             if (generateModuleHeader)
             {
-                //if (generatorOutput != TsGeneratorOutput.Enums &&
-                //    (generatorOutput & TsGeneratorOutput.Constants) != TsGeneratorOutput.Constants)
-                //{
-                //    sb.Append(Mode == TsGenerationModes.Definitions ? "declare " : "export ");
-                //}
-                sb.Append("export ");
+                if (!_isCsharp)
+                {
+                    //if (generatorOutput != TsGeneratorOutput.Enums &&
+                    //    (generatorOutput & TsGeneratorOutput.Constants) != TsGeneratorOutput.Constants)
+                    //{
+                    //    sb.Append(Mode == TsGenerationModes.Definitions ? "declare " : "export ");
+                    //}
+                    sb.Append("export ");
 
-                sb.AppendLine($"{(Mode == TsGenerationModes.Definitions ? "namespace" : "module")} {moduleName} {{");
+                    sb.AppendLine($"{(Mode == TsGenerationModes.Definitions ? "namespace" : "module")} {moduleName} {{");
+                }
+                else
+                {
+                    sb.AppendLine($"namespace {moduleName}");
+                    sb.AppendLine("{");
+                }
             }
 
             using (sb.IncreaseIndentation())
@@ -345,7 +353,8 @@ namespace TypeLitePlus
                     }
                 }
 
-                if ((generatorOutput & TsGeneratorOutput.Constants) == TsGeneratorOutput.Constants)
+                if ((generatorOutput & TsGeneratorOutput.Constants) == TsGeneratorOutput.Constants
+                    && !_isCsharp)
                 {
                     foreach (var classModel in classes)
                     {
@@ -374,11 +383,22 @@ namespace TypeLitePlus
         {
             string typeName = this.GetTypeName(classModel);
             string visibility = this.GetTypeVisibility(classModel, typeName) ? "export " : "";
+            string noun = Mode == TsGenerationModes.Definitions ? "interface" : "class";
+            if (_isCsharp)
+            {
+                visibility = "public ";
+                noun = classModel.Type.IsInterface ? "interface" : "class";
+            }
             _docAppender.AppendClassDoc(sb, classModel, typeName);
-            sb.AppendFormatIndented("{0}{1} {2}", visibility, Mode == TsGenerationModes.Definitions ? "interface" : "class", typeName);
+            sb.AppendFormatIndented("{0}{1} {2}", visibility, noun, typeName);
             if (classModel.BaseType != null)
             {
-                sb.AppendFormat(" extends {0}", this.GetFullyQualifiedTypeName(classModel.BaseType));
+                string format = " extends {0}";
+                if (_isCsharp)
+                {
+                    format = format.Replace("extends", ":");
+                }
+                sb.AppendFormat(format, this.GetFullyQualifiedTypeName(classModel.BaseType));
             }
 
             if (classModel.Interfaces.Count > 0)
@@ -386,15 +406,65 @@ namespace TypeLitePlus
                 var implementations = classModel.Interfaces.Select(GetFullyQualifiedTypeName).ToArray();
 
                 var prefixFormat = classModel.Type.IsInterface ? " extends {0}"
-                    : classModel.BaseType != null ? " , {0}"
+                    : classModel.BaseType != null ? ", {0}"
                     : " extends {0}";
+                if (_isCsharp)
+                {
+                    prefixFormat = prefixFormat.Replace("extends", ":");
+                }
 
-                sb.AppendFormat(prefixFormat, string.Join(" ,", implementations));
+                sb.AppendFormat(prefixFormat, string.Join(", ", implementations));
             }
 
-            sb.AppendLine(" {");
+            if (!_isCsharp)
+            {
+                sb.AppendLine(" {");
+            }
+            else
+            {
+                sb.AppendLine();
+                sb.AppendLineIndented("{");
+            }
 
             var members = new List<TsProperty>();
+            if (_isCsharp && !classModel.Type.IsInterface)
+            {
+                IEnumerable<TsType> flattenBaseInterfaces(TsClass cm)
+                {
+                    foreach (TsType innerInterface in cm.Interfaces)
+                    {
+                        yield return innerInterface;
+                    }
+                    if (cm.BaseType is TsClass innerBaseClassModel)
+                    {
+                        foreach (TsType innerInterface in flattenBaseInterfaces(innerBaseClassModel))
+                        {
+                            yield return innerInterface;
+                        }
+                    }
+                }
+                HashSet<TsType> baseInterfaces = new HashSet<TsType>(flattenBaseInterfaces(classModel));
+
+                IEnumerable<ICollection<TsProperty>> flattenInterfaceProperties(TsClass cm)
+                {
+                    foreach (TsClass innerInterfaceModel in cm.Interfaces.Except(baseInterfaces).Cast<TsClass>())
+                    {
+                        foreach (ICollection<TsProperty> innerInterfaceProperties in flattenInterfaceProperties(innerInterfaceModel))
+                        {
+                            yield return innerInterfaceProperties;
+                        }
+                    }
+                    if (cm != classModel)
+                    {
+                        yield return cm.Properties;
+                    }
+                }
+                TsProperty[] interfaceProperties = flattenInterfaceProperties(classModel).SelectMany(a => a).ToArray();
+                if (interfaceProperties.Length > 0)
+                {
+                    members.AddRange(interfaceProperties);
+                }
+            }
             if ((generatorOutput & TsGeneratorOutput.Properties) == TsGeneratorOutput.Properties)
             {
                 members.AddRange(classModel.Properties);
@@ -405,29 +475,75 @@ namespace TypeLitePlus
             }
             using (sb.IncreaseIndentation())
             {
+                if (_isCsharp)
+                {
+                    foreach (var property in classModel.Constants)
+                    {
+                        if (property.IsIgnored)
+                        {
+                            continue;
+                        }
+
+                        string propertyName = this.GetPropertyName(property);
+                        if (propertyName == "namespace")
+                        {
+                            continue;
+                        }
+
+                        _docAppender.AppendPropertyDoc(sb, property, this.GetPropertyName(property), this.GetPropertyType(property));
+                        sb.AppendLineIndented(string.Format("public const {1} {0} = {2};", propertyName, this.GetPropertyType(property), this.GetPropertyConstantValue(property)));
+                    }
+                }
+
                 foreach (var property in members
                     .Where(p => !p.IsIgnored)
                     .OrderBy(p => this.GetPropertyName(p), StringComparer.InvariantCulture))
                 {
                     _docAppender.AppendPropertyDoc(sb, property, this.GetPropertyName(property), this.GetPropertyType(property));
-                    sb.AppendLineIndented(string.Format("{0}: {1};", this.GetPropertyName(property), this.GetPropertyType(property)));
+                    string propertyFormat = "{0}: {1};";
+                    string propertyType = this.GetPropertyType(property);
+                    if (_isCsharp)
+                    {
+                        propertyFormat = (noun == "class" ? "public " : "") + "{1} {0} {{ get; set; }}";
+                        if (propertyType == "any" || propertyType == "number")
+                        {
+                            throw new InvalidOperationException();
+                        }
+                    }
+                    sb.AppendLineIndented(string.Format(propertyFormat, this.GetPropertyName(property), propertyType));
                 }
             }
 
             sb.AppendLineIndented("}");
-
-            _generatedClasses.Add(classModel);
         }
 
         protected virtual void AppendEnumDefinition(TsEnum enumModel, ScriptBuilder sb, TsGeneratorOutput output)
         {
             string typeName = this.GetTypeName(enumModel);
             string visibility = (output & TsGeneratorOutput.Enums) == TsGeneratorOutput.Enums || (output & TsGeneratorOutput.Constants) == TsGeneratorOutput.Constants ? "export " : "";
+            if (_isCsharp)
+            {
+                visibility = "public ";
+            }
 
             _docAppender.AppendEnumDoc(sb, enumModel, typeName);
 
             string constSpecifier = (this.GenerateConstEnums ?? enumModel.EmitConstEnum) ? "const " : string.Empty;
-            sb.AppendLineIndented(string.Format("{0}{2}enum {1} {{", visibility, typeName, constSpecifier));
+            string format = "{0}{2}enum {1} {{";
+            if (_isCsharp)
+            {
+                constSpecifier = string.Empty;
+                format = format.Replace(" {{", "");
+                if (enumModel.Values.Any(v => long.TryParse(v.Value, out long longValue) && longValue > int.MaxValue))
+                {
+                    format += " : long";
+                }
+            }
+            sb.AppendLineIndented(string.Format(format, visibility, typeName, constSpecifier));
+            if (_isCsharp)
+            {
+                sb.AppendLineIndented("{");
+            }
 
             using (sb.IncreaseIndentation())
             {
@@ -449,8 +565,6 @@ namespace TypeLitePlus
             }
 
             sb.AppendLineIndented("}");
-
-            _generatedEnums.Add(enumModel);
         }
 
         /// <summary>
@@ -479,14 +593,18 @@ namespace TypeLitePlus
                     }
 
                     _docAppender.AppendConstantModuleDoc(sb, property, this.GetPropertyName(property), this.GetPropertyType(property));
-                    sb.AppendFormatIndented("export const {0}: {1} = {2};", this.GetPropertyName(property), this.GetPropertyType(property), this.GetPropertyConstantValue(property));
+                    string propertyType = ": " + this.GetPropertyType(property);
+                    string propertyConstantValue = this.GetPropertyConstantValue(property);
+                    if (propertyConstantValue != null)
+                    {
+                        propertyType = string.Empty;
+                    }
+                    sb.AppendFormatIndented("export const {0}{1} = {2};", this.GetPropertyName(property), propertyType, propertyConstantValue);
                     sb.AppendLine();
                 }
 
             }
             sb.AppendLineIndented("}");
-
-            _generatedClasses.Add(classModel);
         }
 
         /// <summary>
@@ -549,6 +667,12 @@ namespace TypeLitePlus
         /// <returns>name of the type</returns>
         public string GetTypeName(TsType type)
         {
+            if (_isCsharp
+                && Type.GetTypeCode(type.Type) > TypeCode.DBNull)
+            {
+                return type.Type.Name;
+            }
+
             if (_typeConvertors.IsConvertorRegistered(type.Type))
             {
                 return _typeConvertors.ConvertType(type.Type);
@@ -612,10 +736,9 @@ namespace TypeLitePlus
         /// </summary>
         /// <param name="module">The module to be formatted</param>
         /// <returns>The module name after formatting.</returns>
-        public string GetModuleName(TsModule module)
+        public string GetModuleName(TsModule module, TsType type = null)
         {
-            return _moduleNameFormatter(module);
+            return _moduleNameFormatter(module, type);
         }
-
     }
 }

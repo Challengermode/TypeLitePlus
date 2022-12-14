@@ -8,6 +8,6 @@ namespace TypeLitePlus
     /// </summary>
     /// <param name="module">The module to be formatted</param>
     /// <returns>The module name after formatting.</returns>
-    public delegate string TsModuleNameFormatter(TsModule module);
+    public delegate string TsModuleNameFormatter(TsModule module, TsType type);
 
 }

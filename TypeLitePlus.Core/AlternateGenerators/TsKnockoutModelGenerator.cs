@@ -49,7 +49,6 @@ namespace TypeLitePlus.AlternateGenerators
                 }
             }
             sb.AppendLineIndented("}");
-            _generatedClasses.Add(classModel);
         }
     }
 }
